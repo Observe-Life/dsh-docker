@@ -3,14 +3,6 @@ set -e
 LAN_IP="${DSH_LAN_IP:-192.168.31.115}"
 BIND_IP="${DSH_BIND_IP:-172.23.0.51}"
 
-# ---- 登录插件就位（镜像内置；软链官方依赖树，放入数据卷解析路径；幂等）----
-NM=/data/node_modules
-mkdir -p "$NM/@local"
-rm -rf "$NM/@local/dsh-host-authentication-login"
-cp -r /opt/dsh-login/plugin "$NM/@local/"
-ln -sfn /usr/local/lib/node_modules/@deepseek-ai "$NM/@deepseek-ai"
-echo "[entrypoint] 登录插件已就位（镜像内置版）"
-
 # ---- TLS 证书（持久化 /data/certs；SAN 覆盖内网地址）----
 mkdir -p /data/certs
 if [ ! -f /data/certs/server.crt ]; then
@@ -53,6 +45,15 @@ fs.writeFileSync(tmp, s);
 fs.renameSync(tmp, p);
 console.log("[entrypoint] 登录插件挂载已写入");
 '
+
+# ---- 登录插件就位（镜像内置；软链官方依赖树，放入数据卷解析路径；幂等）----
+# 必须在首次物化之后执行：物化过程会清理数据根 node_modules 里的外来包
+NM=/data/node_modules
+mkdir -p "$NM/@local"
+rm -rf "$NM/@local/dsh-host-authentication-login"
+cp -r /opt/dsh-login/plugin "$NM/@local/"
+ln -sfn /usr/local/lib/node_modules/@deepseek-ai "$NM/@deepseek-ai"
+echo "[entrypoint] 登录插件已就位（镜像内置版）"
 
 # ---- 正式启动（登录跳转补丁已在镜像构建期应用，无需重放）----
 mkdir -p /data/run
