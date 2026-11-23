@@ -20,6 +20,9 @@ COPY plugin/ /opt/dsh-login/plugin/
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# 官方数据根：profile/凭据等工作目录由 DSH_HOME 指向数据卷（与官方约定一致）
+ENV DSH_HOME=/data
+
 # 默认绑定：DSH_LAN_IP=对外公布的内网地址；DSH_BIND_IP=容器内监听地址（部署时可用环境变量覆盖）
 ENV DSH_LAN_IP=192.168.31.115 DSH_BIND_IP=172.23.0.51 DSH_TRUSTED_HOST=192.168.31.115
 
