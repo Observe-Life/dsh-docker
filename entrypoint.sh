@@ -51,7 +51,8 @@ console.log("[entrypoint] 登录插件挂载已写入");
 NM=/data/node_modules
 mkdir -p "$NM/@local"
 rm -rf "$NM/@local/dsh-host-authentication-login"
-cp -r /opt/dsh-login/plugin "$NM/@local/"
+mkdir -p "$NM/@local/dsh-host-authentication-login"
+cp -r /opt/dsh-login/plugin/. "$NM/@local/dsh-host-authentication-login/"
 ln -sfn /usr/local/lib/node_modules/@deepseek-ai "$NM/@deepseek-ai"
 echo "[entrypoint] 登录插件已就位（镜像内置版）"
 
