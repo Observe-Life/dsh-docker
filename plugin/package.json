@@ -1,0 +1,7 @@
+{
+  "name": "@local/dsh-host-authentication-login",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "dsh 网页登录插件：账号密码登录页，签发官方协议浏览器 Cookie",
+  "main": "index.js"
+}
