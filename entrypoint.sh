@@ -53,7 +53,7 @@ mkdir -p "$NM/@local"
 rm -rf "$NM/@local/dsh-host-authentication-login"
 mkdir -p "$NM/@local/dsh-host-authentication-login"
 cp -r /opt/dsh-login/plugin/. "$NM/@local/dsh-host-authentication-login/"
-ln -sfn /usr/local/lib/node_modules/@deepseek-ai "$NM/@deepseek-ai"
+ln -sfn /usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai "$NM/@deepseek-ai"
 echo "[entrypoint] 登录插件已就位（镜像内置版）"
 
 # ---- 正式启动（登录跳转补丁已在镜像构建期应用，无需重放）----
