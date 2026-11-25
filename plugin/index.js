@@ -63,6 +63,21 @@ function loginPage(wrong) {
     <input id="pass" name="pass" type="password" autocomplete="current-password" required>
     <button type="submit">登 录</button>
   </form>
+  <script>
+  /* 无痕登录：后台提交嗅探结果，成功后用「原地替换」跳回主页，登录页不留进历史，
+     返回键即可正常退出标签页；后台请求失败或响应非登录成功时回退原生整页提交。 */
+  document.querySelector('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    try {
+      /* 服务器按 urlencoded 解析（URLSearchParams），FormData 会被 fetch 编码成 multipart 而被拒，
+         必须先转 URLSearchParams 让浏览器发 application/x-www-form-urlencoded。 */
+      const r = await fetch(form.action, { method: 'POST', body: new URLSearchParams(new FormData(form)), redirect: 'manual' });
+      if (r.type === 'opaqueredirect') { location.replace('./'); return; }
+    } catch (_) { /* 网络异常走回退 */ }
+    form.submit();
+  });
+  </script>
   ${wrong ? '<p class="err">账号或密码不正确，请重试</p>' : ''}
 </div>
 </body>
@@ -74,6 +89,27 @@ function timingSafeStringEqual(actual, expected) {
   const actualBytes = Buffer.from(actual, 'utf8')
   const expectedBytes = Buffer.from(expected, 'utf8')
   return actualBytes.byteLength === expectedBytes.byteLength && timingSafeEqual(actualBytes, expectedBytes)
+}
+
+/** 验证浏览器 Cookie 是否为当前域名下有效的官方协议登录凭据（验签 + 过期 + 域名核对）。 */
+function verifyBrowserCookie(cookieHeader, authority, secret) {
+  if (typeof cookieHeader !== 'string' || cookieHeader === '' || secret === undefined) return false
+  const name = cookieName(authority)
+  const pair = cookieHeader.split(';').map(part => part.trim()).find(part => part.startsWith(name + '='))
+  if (pair === undefined) return false
+  const parts = pair.slice(name.length + 1).split('.')
+  if (parts.length !== 3 || parts[0] !== 'v1') return false
+  const [, payloadBody, signatureB64] = parts
+  const signature = Buffer.from(signatureB64.replaceAll('-', '+').replaceAll('_', '/'), 'base64')
+  const expected = createHmac('sha256', secret).update(payloadBody).digest()
+  if (signature.length !== expected.length || !timingSafeEqual(signature, expected)) return false
+  try {
+    const payload = JSON.parse(Buffer.from(payloadBody.replaceAll('-', '+').replaceAll('_', '/'), 'base64').toString('utf8'))
+    return payload.version === 1 && payload.authority === authority
+      && typeof payload.expiresAt === 'number' && payload.expiresAt > Date.now()
+  } catch {
+    return false
+  }
 }
 
 /** 读取请求体，上限 64KB（评审建议 3），超限返回 undefined。 */
@@ -209,7 +245,26 @@ export async function apply(ctx, config) {
           res.end()
           return
         }
-        // GET：出登录页（已登录用户极少会手动访问 /login，直接出页无害）。
+        // GET：已登录用户直接弹回主页——浏览器返回键会把用户送回 /login，在这里再出登录页
+        // 会造成「按返回键落回登录页」的怪现象；Cookie 验签失败或密钥不可用时降级出登录页。
+        // 早退次序：先算 authority 并确认 Cookie 头里有本插件前缀，两项都没有就不碰凭据库；
+        // 密钥异常要留日志（与 POST 同款），验签失败按未登录出页。
+        const cookieHeader = req.headers.cookie
+        const cookieAuthority = requestAudience(req.headers, secure)
+        if (cookieAuthority !== undefined && typeof cookieHeader === 'string'
+          && cookieHeader.includes(COOKIE_PREFIX)) {
+          let secret
+          try { secret = await readSigningSecret(ctx.credentials) }
+          catch (error) {
+            secret = undefined
+            console.error('[host-authentication-login] 登录页验签时签名密钥读取失败（按未登录处理）:', error)
+          }
+          if (secret !== undefined && verifyBrowserCookie(cookieHeader, cookieAuthority, secret)) {
+            res.writeHead(302, { 'cache-control': 'no-store', location: '/' })
+            res.end()
+            return
+          }
+        }
         res.writeHead(200, {
           'cache-control': 'no-store',
           'content-type': 'text/html; charset=utf-8',
