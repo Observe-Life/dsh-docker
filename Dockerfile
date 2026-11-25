@@ -21,6 +21,10 @@ RUN node /opt/dsh-login/apply-login-patch.js
 COPY scripts/apply-chinese-skill-patch.js /opt/dsh-patches/apply-chinese-skill-patch.js
 RUN node /opt/dsh-patches/apply-chinese-skill-patch.js
 
+# 使智能体新建的工作区文件人人可读（0600 变 0644，暂存目录 0700 保持）；三态幂等，锚点漂移即中止
+COPY scripts/apply-write-mode-patch.js /opt/dsh-patches/apply-write-mode-patch.js
+RUN node /opt/dsh-patches/apply-write-mode-patch.js
+
 # 自研登录插件（镜像内置）与启动脚本
 COPY plugin/ /opt/dsh-login/plugin/
 COPY entrypoint.sh /entrypoint.sh
@@ -32,7 +36,8 @@ RUN ln -s /usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules /opt/dsh-log
 # 补丁后行为回归测试：任一断言失败即构建失败（锚点漂移之外的最后一道行为把关）
 COPY scripts/tests/ /opt/dsh-patches/tests/
 RUN node /opt/dsh-patches/tests/test-skill-patch.mjs \
-    && PLUGIN_PATH=/opt/dsh-login/plugin/index.js node /opt/dsh-patches/tests/test-login-plugin.mjs
+    && PLUGIN_PATH=/opt/dsh-login/plugin/index.js node /opt/dsh-patches/tests/test-login-plugin.mjs \
+    && node /opt/dsh-patches/tests/test-write-mode-patch.mjs
 
 # 官方数据根：profile/凭据等工作目录由 DSH_HOME 指向数据卷（与官方约定一致）
 ENV DSH_HOME=/data
