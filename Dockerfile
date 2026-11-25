@@ -8,7 +8,7 @@ ARG DSH_VERSION=0.2.2-rc.5
 RUN npm install -g --omit=dev "@deepseek-ai/dsh@${DSH_VERSION}"
 
 # 基础工具（tini 作 1 号进程收尸；openssl 生成自签证书）
-RUN apt-get update -qq && apt-get install -y --no-install-recommends tini openssl python3 curl \
+RUN apt-get update -qq && apt-get install -y --no-install-recommends tini openssl python3 curl git \
     && rm -rf /var/lib/apt/lists/*
 
 # 登录跳转补丁：构建期应用，锚点必须恰好命中一处，否则构建直接失败
